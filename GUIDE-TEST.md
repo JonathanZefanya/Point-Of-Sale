@@ -10,20 +10,14 @@ Semua perintah dijalankan di PowerShell, dari folder `studi-case`.
 
 ### Sehari sebelumnya (sekali saja)
 
-**Tambahkan netcat ke image FE produksi**, supaya demo 3 bisa dijalankan di mode produksi tanpa pindah ke mode development.
-
-Di `docker/web/Dockerfile.prod`, tambahkan satu baris di tahap kedua, setelah `FROM nginx:1.27-alpine`:
-
-```dockerfile
-FROM nginx:1.27-alpine
-RUN apk add --no-cache netcat-openbsd
-```
-
-Lalu build ulang:
+**Pastikan image development dan produksi sudah ter-build**, supaya perpindahan mode saat demo 3 tidak perlu build ulang:
 
 ```powershell
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml build
 ```
+
+Image FE produksi sengaja tidak berisi netcat, jadi uji `nc` dijalankan dari image FE development. Coba sekali alur demo 3 untuk tahu berapa lama perpindahan modenya.
 
 ### 30 menit sebelum presentasi
 
@@ -80,7 +74,7 @@ docker network inspect pos_db --format '{{range .Containers}}{{.Name}} {{.IPv4Ad
 - `pos_app`: `pos-web 172.20.0.10/24` dan `pos-restapi 172.20.0.20/24`.
 - `pos_db`: `pos-mysql 172.21.0.30/24` dan `pos-restapi 172.21.0.20/24`.
 
-**Yang diucapkan**
+**Penjelasan**
 
 > “Setiap container saya perlakukan sebagai satu server dengan IP privat sendiri. Ada dua jaringan: pos_app untuk FE dan BE, pos_db untuk BE dan DB. BE satu-satunya yang ada di dua jaringan. Perhatikan juga, MySQL tidak membuka port sama sekali.”
 
@@ -105,7 +99,7 @@ docker network inspect pos_db --format '{{range .Containers}}{{.Name}} {{.IPv4Ad
 
 Dashboard tampil dengan data. Halaman Produk tetap tampil setelah di-refresh.
 
-**Yang diucapkan**
+**Penjelasan**
 
 > “FE ini file statis yang disajikan Nginx di port 8080. Saat saya login, browser memanggil API langsung ke port 8000, terlihat di tab Network. Makanya BE mengatur CORS untuk origin localhost:8080. Halaman tetap tampil saat di-refresh karena Nginx mengarahkan semua route ke index.html.”
 
@@ -116,7 +110,17 @@ Dashboard tampil dengan data. Halaman Produk tetap tampil setelah di-refresh.
 
 ---
 
-## Demo 3: FE tidak bisa menjangkau DB
+## Demo 3: FE tidak bisa menjangkau DB (mode development)
+
+Image FE produksi hanya berisi Nginx dan file statis, tanpa netcat. Untuk demo ini, **hanya container FE** yang ditukar sementara ke image development. Nama container, jaringan, dan IP-nya tetap sama (`pos-web`, `pos_app`, `172.20.0.10`), jadi hasilnya sama dengan FE produksi. BE dan DB tidak disentuh.
+
+**Pindah FE ke mode development**
+
+```powershell
+docker compose up -d --no-deps pos-web
+```
+
+`--no-deps` memastikan hanya `pos-web` yang dibuat ulang, BE dan DB tetap berjalan.
 
 **Perintah**
 
@@ -127,7 +131,7 @@ docker exec pos-web nc -zv -w 3 pos-mysql 3306
 
 **Hasil yang diharapkan**
 
-- Perintah pertama: `Operation timed out` setelah sekitar 3 detik.
+- Perintah pertama: `timed out` setelah sekitar 3 detik.
 - Perintah kedua: `bad address 'pos-mysql'`.
 
 **Pembanding: BE bisa**
@@ -138,13 +142,22 @@ docker exec pos-restapi php artisan db:show
 
 Hasilnya menampilkan host `172.21.0.30`, database `pos`, dan daftar tabel. Tekan `Ctrl + C` kalau daftarnya terlalu panjang.
 
-**Yang diucapkan**
+**Kembalikan FE ke mode produksi**
 
-> “Dari container FE, saya coba menjangkau MySQL lewat IP-nya: timeout, karena FE tidak terhubung ke jaringan pos_db. Lewat nama container pun tidak dikenali, karena DNS Docker hanya berlaku di jaringan yang sama. Sebaliknya dari BE, koneksinya berhasil.”
+```powershell
+dc up -d --no-deps pos-web
+```
+
+Cek `dc ps`: `pos-web` kembali memakai port `8080`.
+
+**Penjelasan**
+
+> “Image FE produksi hanya berisi Nginx, jadi untuk uji ini FE saya tukar sementara ke image development. IP dan jaringannya tetap sama. Dari container FE, saya coba menjangkau MySQL lewat IP-nya: timeout, karena FE tidak terhubung ke jaringan pos_db. Lewat nama container pun tidak dikenali, karena DNS Docker hanya berlaku di jaringan yang sama. Sebaliknya dari BE, koneksinya berhasil.”
 
 **Kalau gagal**
 
-- `nc: not found`: baris `apk add netcat-openbsd` belum ada di `Dockerfile.prod`, atau image belum di-build ulang. Lewati demo ini dan tunjukkan slide pengujian nomor 5 dan 6.
+- `pos-web` lama menyala di mode development (`npm ci` berjalan): tunggu sampai `docker logs pos-web` tidak bergerak. Perintah `nc` sebenarnya sudah bisa dijalankan selama container berstatus `Up`.
+- Waktu terbatas: lewati demo ini dan tunjukkan slide pengujian nomor 5 dan 6.
 
 ---
 
@@ -171,7 +184,7 @@ Masukkan password user `pos` yang **benar**.
 - Tabel user: `pos` dengan host `172.21.0.20`, `root` dengan host `localhost`.
 - Login: `ERROR 1045 (28000): Access denied for user 'pos'@'localhost'`.
 
-**Yang diucapkan**
+**Penjelasan**
 
 > “User aplikasi hanya boleh login dari 172.21.0.20, yaitu IP BE. Saya coba login dari dalam container DB dengan password yang benar, dan tetap ditolak, karena koneksinya datang dari localhost. Jadi password yang bocor pun tidak cukup, koneksinya harus datang dari server BE.”
 
@@ -203,7 +216,7 @@ Ulangi perintah `docker inspect` sampai hasilnya `healthy` (biasanya kurang dari
 - Saat DB mati: “Dashboard gagal dimuat. Terjadi kesalahan di server.”
 - Setelah `healthy`: dashboard kembali normal, data tetap utuh, tanpa me-restart BE.
 
-**Yang diucapkan**
+**Penjelasan**
 
 > “Saat DB mati, aplikasi tidak crash. BE masih hidup dan membalas error 500 yang rapi. Ini berbeda dengan error CORS, yang sama sekali tidak memberi respons. Jadi dari pesannya saja kita bisa menebak lapisan mana yang bermasalah. Setelah DB menyala, BE langsung pulih karena Laravel membuka koneksi baru di setiap request.”
 
@@ -213,7 +226,7 @@ Ulangi perintah `docker inspect` sampai hasilnya `healthy` (biasanya kurang dari
 
 ---
 
-## Pertanyaan yang mungkin muncul
+## Pertanyaan umum
 
 | Pertanyaan | Inti jawaban |
 |---|---|
@@ -222,7 +235,7 @@ Ulangi perintah `docker inspect` sampai hasilnya `healthy` (biasanya kurang dari
 | Bedanya dengan server sungguhan? | Container berbagi satu mesin. Di produksi tiap lapis di VM atau VPS sendiri, dengan firewall, DNS, dan HTTPS. Konfigurasi aplikasinya tetap sama, hanya nilainya berganti. |
 | Kalau alamat BE berubah? | Ubah `VITE_API_URL` lalu build ulang FE, dan ubah CORS di BE kalau alamat FE ikut berubah. |
 | Password database disimpan di mana? | Di `.env.production` yang tidak masuk image karena diabaikan `.dockerignore`, dan dikirim lewat `env_file` saat container berjalan. |
-| Apa yang ingin diperbaiki berikutnya? | Batasi user `pos` hanya ke database `pos` (tanpa `pos_testing`), tambah CI/CD, dan backup terjadwal. |
+| Apa yang perlu diperbaiki berikutnya? | Batasi user `pos` hanya ke database `pos` (tanpa `pos_testing`), tambah CI/CD, dan backup terjadwal. |
 
 ---
 
