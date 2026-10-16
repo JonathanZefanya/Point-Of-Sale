@@ -155,7 +155,6 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml exec pos-restapi
 
 ```
 studi-case/
-├── CLAUDE.md               aturan pengembangan & task list
 ├── GUIDE-TEST.md           panduan demo deployment
 ├── docker-compose.yml      development (3 container, IP statis)
 ├── docker-compose.prod.yml override produksi
