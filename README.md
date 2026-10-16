@@ -8,7 +8,6 @@ Aplikasi kasir untuk toko retail dan F&B: layar kasir yang bisa dipakai tanpa pe
 | Frontend (back office + kasir) | Vue 3, Vite, Pinia, Tailwind CSS | [`pos-web/`](pos-web) |
 | Infrastruktur | Docker Compose, 3 container | [`docker/`](docker), [`docker-compose.yml`](docker-compose.yml) |
 
-Aturan pengembangan (konvensi kode, kontrak API, prinsip UX, urutan task) ada di [`CLAUDE.md`](CLAUDE.md). Panduan demo deployment ada di [`GUIDE-TEST.md`](GUIDE-TEST.md).
 
 ---
 
