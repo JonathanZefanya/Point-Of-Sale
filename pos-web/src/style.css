@@ -1,0 +1,70 @@
+@import 'tailwindcss';
+@config '../tailwind.config.js';
+
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-sans/700.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+
+@layer base {
+  /* 14px dasar back office; layar kasir memakai .cashier-root (16px) */
+  body {
+    @apply bg-bg font-sans text-sm text-text antialiased;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary;
+  }
+}
+
+@layer utilities {
+  /* Angka uang/qty: rata kanan + lebar digit seragam (CLAUDE.md §7.1 no. 11) */
+  .num {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
+  .cashier-root {
+    @apply text-base;
+  }
+}
+
+/* Cetak struk/laporan via window.print(): hanya .print-area yang tercetak, lebar kertas thermal 80mm */
+@media print {
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+
+  .print-area {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 80mm;
+    max-width: none;
+    border: 0;
+    padding: 4mm;
+    color: #000;
+  }
+}
+
+/* Elemen khusus cetak (mis. struk): tidak tampil di layar */
+.print-only {
+  display: none;
+}
+
+@media print {
+  .print-only {
+    display: block;
+  }
+}

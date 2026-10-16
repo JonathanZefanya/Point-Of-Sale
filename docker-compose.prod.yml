@@ -1,0 +1,25 @@
+services:
+  pos-restapi:
+    build:
+      context: .
+      dockerfile: docker/restapi/Dockerfile.prod
+    env_file: ./pos-restapi/.env.production
+    ports: !override
+      - "8000:80"
+    # Gambar produk & log tetap ada walau container dibuat ulang
+    volumes: !override
+      - pos_storage:/var/www/html/storage
+
+  pos-web:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile.prod
+      args:
+        VITE_API_URL: http://localhost:8000/api/v1
+    ports: !override
+      - "8080:80"
+    volumes: !reset []
+    environment: !reset {}
+volumes:
+  pos_storage:
+    name: pos_storage
